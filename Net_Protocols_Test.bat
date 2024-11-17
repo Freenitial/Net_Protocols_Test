@@ -43,7 +43,6 @@ if /i "%~1"=="/exclude" goto :handle_exclude
 if /i "%~1"=="/debug"   goto :handle_debug
 if /i "%~1"=="/nopause" goto :handle_nopause
 
-set "returncode=6"
 echo  Argument not recognized : "%~1" & pause & goto :help
 
 :handle_site
