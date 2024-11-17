@@ -6,7 +6,6 @@
 |                                                       |
 |   **Test Multiple Network Protocols Easily**          |
 |                                                       |
-|   Optional: call with arguments to replace the default config  |
 
 --------------------
 
@@ -21,17 +20,19 @@
 
 ### Supported Arguments 🛠️
 
-| **Argument** | **Value(s)**                              | **Description**                                       |
-|--------------|-------------------------------------------|-------------------------------------------------------|
-| `/site`      | domain[+++/---protocol]                  | Specifies target websites (with optional filters).    |
-| `/only`      | ip4, ip6, tr4, tr6, tls, htp, dns        | Tests only the specified protocols.                  |
-| `/exclude`   | ip4, ip6, tr4, tr6, tls, htp, dns        | Excludes specified protocols.                        |
-| `/debug`     | true/false (default: true)               | Shows debug information for failed tests.            |
-| `/nopause`   | true/false (default: false)              | Skips pause at the end of the script.                |
+`/site` is **required** if you don't pre-fill the variable `set "sites=" at the top of the script
+
+| **Argument** | **Value(s)**                             | **Description**                                     |
+|--------------|------------------------------------------|-----------------------------------------------------|
+| `/site`      | domain[+++/---protocol]                  | Specifies target websites [with optional filters]   |
+| `/only`      | ip4, ip6, tr4, tr6, tls, htp, dns        | Tests only the specified protocols                  |
+| `/exclude`   | ip4, ip6, tr4, tr6, tls, htp, dns        | Excludes specified protocols                        |
+| `/debug`     | true/false (default: true)               | Shows debug information for failed tests            |
+| `/nopause`   | true/false (default: false)              | Skips pause at the end of the script                |
 
 --------------------
 
-### Supported Protocols
+### Supported Protocols 🌍
 
 | **Protocol** | **Description**                           |
 |--------------|-------------------------------------------|
