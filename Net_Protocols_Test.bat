@@ -1,27 +1,16 @@
 @echo off
-chcp 437 >nul
+chcp 65001 >nul
 cd /d "%~dp0"
 setlocal enabledelayedexpansion
-echo.
 
 REM MANUALLY: set "sites=google.com microsoft.com yahoo.com"
 set "sites="  
+set "dp0=%~dp0"
+set "n0=%~n0"
 
 
-set "output_dir=%~dp0Net_Protocols_Test"
-if not exist "!output_dir!" (
-    mkdir "!output_dir!"
-    if errorlevel 1 (
-        echo Failed to create output directory: "!output_dir!"
-        pause
-        exit /b 11
-    )
-)
-del "!output_dir!\*_debug_*.txt" >nul 2>&1
 
 set protocols=ip4 ip6 tr4 tr6 tls htp dns
-
-
 
 :: ______________________________________________________________________________ ::
 ::                                                                                ::
@@ -35,15 +24,81 @@ if /i "%~1"=="/help"    goto :help
 if /i "%~1"=="-help"    goto :help
 if /i "%~1"=="--help"   goto :help
 
+call :check_nopause %*
+call :parse_args %ARGS%
+if defined error_arg (
+    if defined arg_not_recognized (
+        echo  Argument not recognized : "%arg_not_recognized%"
+    )
+    if defined protocol_error (
+        if defined only_arg_error    echo  Invalid protocol "!arg!" specified after /only
+        if defined exclude_arg_error echo  Invalid protocol "!arg!" specified after /exclude
+        echo  Valid values are : 
+        echo    - ip4 = Ping IPv4 
+        echo    - ip6 = Ping IPv6
+        echo    - tr4 = Traceroute IPv4 
+        echo    - tr6 = Traceroute IPv6
+        echo    - htp = HTTPS 
+        echo    - tls = TLS 1.2
+        echo    - dns = DNS lookup
+    )
+    if defined nodebug_error (
+        echo  Argument not recognized "%arg_not_recognized%" specified after /nodebug
+        echo  Valid values are : true, false, 1, 0. 
+        echo                     Nothing specified = true --^> debug will be shown at end.
+    )
+    if not defined nopause (echo  Press a key to see Help & pause >nul & goto :help) else (exit /b 2)
+)
+goto :after_args
+
+
+
+:check_nopause
+set "all_args=%*"
+set "extract_next="
+for %%A in (%all_args%) do (
+    set "current_arg=%%A"
+    if "%%A"=="/nopause" (
+        set "nopause=true"
+        set "extract_next=true"
+    ) else (
+        if  defined extract_next (
+            if      "%%A"=="true"             (set "nopause=true") ^
+            else if "%%A"=="false"            (set "nopause="    ) ^
+            else if "%%A"=="1"                (set "nopause=true") ^
+            else if "%%A"=="0"                (set "nopause="    ) ^
+            else if "!current_arg:~0,1!"=="/" (set "nopause=true" & set "args_remaining=!args_remaining! %%A") ^
+            else                              (set "nopause=true")
+            set "extract_next=" & set "extracted=true"
+        )
+        if not defined extracted set "args_remaining=!args_remaining! %%A"
+        set "extracted="
+    )
+)
+set "ARGS=!args_remaining:~1!"
+goto :eof
+
+
 :parse_args
-if "%~1"=="" goto :after_args
+if defined error_arg    goto :eof
+if "%~1"==""            goto :eof
 if /i "%~1"=="/site"    goto :handle_site
 if /i "%~1"=="/only"    goto :handle_only
 if /i "%~1"=="/exclude" goto :handle_exclude
-if /i "%~1"=="/debug"   goto :handle_debug
-if /i "%~1"=="/nopause" goto :handle_nopause
+if /i "%~1"=="/nodebug" goto :handle_nodebug
+if /i "%~1"=="/output"  goto :handle_output
+set "arg_not_recognized=%~1" & goto :eof
 
-echo  Argument not recognized : "%~1" & pause & goto :help
+
+:handle_output
+shift
+if  "%~1"==""          (set "error_arg=true" & set "output_missing_error=true" & goto :eof)
+set "arg1=%~1"
+if  "!arg1:~0,1!"=="/" (set "error_arg=true" & set "output_invalid_error=true" & goto :eof)
+set "output_dir=%~1"
+shift
+goto :parse_args
+
 
 :handle_site
 shift
@@ -56,6 +111,7 @@ if defined resetedsites (set "sites=!sites!;!arg!") else (set "sites=!arg!")
 set "resetedsites=1"
 shift
 goto :collect_sites
+
 
 :handle_only
 shift
@@ -72,21 +128,10 @@ for %%P in (%protocols%) do (
         set "found_protocol=1"
     )
 )
-if "!found_protocol!"=="" (
-    echo.
-    echo  Invalid protocol "!arg!" specified after /only
-    echo  Valid values are : 
-    echo    - ip4 = Ping IPv4 
-    echo    - ip6 = Ping IPv6
-    echo    - tr4 = Traceroute IPv4 
-    echo    - tr6 = Traceroute IPv6
-    echo    - htp = HTTPS 
-    echo    - tls = TLS 1.2
-    echo    - dns = DNS lookup
-    echo. & echo  Press any key to see Help & pause >nul & goto :help
-)
+if "!found_protocol!"=="" (set "error_arg=true" & set "protocol_error=true" & set "only_arg_error=true" & goto :eof)
 shift
 goto :collect_onlys
+
 
 :handle_exclude
 shift
@@ -102,71 +147,55 @@ for %%P in (%protocols%) do (
         set "found_protocol=1"
     )
 )
-if "!found_protocol!"=="" (
-    echo  Invalid protocol "!arg!" specified after /exclude
-    echo  Valid values are : 
-    echo    - ip4 = Ping IPv4 
-    echo    - ip6 = Ping IPv6
-    echo    - tr4 = Traceroute IPv4 
-    echo    - tr6 = Traceroute IPv6
-    echo    - htp = HTTPS 
-    echo    - tls = TLS 1.2
-    echo    - dns = DNS lookup
-    echo. & echo  Press any key to see Help & pause >nul & goto :help
-)
+if "!found_protocol!"=="" (set "error_arg=true" & set "protocol_error=true" & set "exclude_arg_error=true" & goto :eof)
 shift
 goto :collect_excludes
 
-:handle_debug
+
+:handle_nodebug
 shift
-if "%~1"=="" (
-    set "debug=true"
-) else (
-    if /i "%~1"=="true"  set "debug=true"    & set "recognized_debug_arg=true"
-    if /i "%~1"=="1"     set "debug=true"    & set "recognized_debug_arg=true"
-    if /i "%~1"=="false" set "debug=false"   & set "recognized_debug_arg=true"
-    if /i "%~1"=="0"     set "debug=false"   & set "recognized_debug_arg=true"
-    if not defined recognized_debug_arg (
-        echo  Argument not recognized "%~1" specified after /debug
-        echo  Valid values are : true, false, 1, 0. 
-        echo                     Nothing specified = true --^> debug will be shown at end.
-        echo. & echo  Press any key to see Help & pause >nul & goto :help
-    )
-    shift
-)
+set "nodebug=true"
+set "arg1=%~1"
+if "!arg1:~0,1!"=="/" goto :parse_args
+set "arg=%~1"
+if /i "%~1"=="true"  set "nodebug=true"    & set "recognized_nodebug_arg=true"
+if /i "%~1"=="1"     set "nodebug=true"    & set "recognized_nodebug_arg=true"
+if /i "%~1"=="false" set "nodebug=false"   & set "recognized_nodebug_arg=true"
+if /i "%~1"=="0"     set "nodebug=false"   & set "recognized_nodebug_arg=true"
+if not defined recognized_nodebug_arg (set "error_arg=true" & set "nodebug_error=true" & goto :eof)
+shift
 goto :parse_args
 
-:handle_nopause
-shift
-if "%~1"=="" (
-    set "nopause=true"
-) else (
-    if /i "%~1"=="true"  set "nopause=true"  & set "recognized_nopause_arg=true"
-    if /i "%~1"=="1"     set "nopause=true"  & set "recognized_nopause_arg=true"
-    if /i "%~1"=="false" set "nopause=false" & set "recognized_nopause_arg=true"
-    if /i "%~1"=="0"     set "nopause=false" & set "recognized_nopause_arg=true"
-    if not defined recognized_nopause_arg (
-        echo  Argument not recognized "%~1" specified after /nopause
-        echo  Valid values are : true, false, 1, 0. 
-        echo                     Nothing specified = false --^> script will be paused at end.
-        echo. & echo  Press any key to see Help & pause >nul & goto :help
-    )
-    shift
-)
-goto :parse_args
+
+goto :eof
+
 
 :after_args
+
 
 if not defined sites (
     echo  Please provide one or more websites addresses to test
     echo  Be careful to provide simples addresses, not including special caracters like %%
-    echo. & echo  Press any key to see Help & pause >nul & goto :help
+    echo.
+    if not defined nopause (echo  Press a key to see Help & pause>nul & goto :help) else (exit /b 2)
 )
 
-if not defined debug    set "debug=true"
-if "%debug%"=="false"   set "debug="
-if defined nopause if "%nopause%"=="false" set "nopause="
+if not defined nodebug    set "nodebug=false"
+if "%nodebug%"=="false"   set "nodebug="
 
+if not defined output_dir set "output_dir=!dp0!Net_Protocols_Test"
+set "tempfile=!output_dir!\test_write.tmp"
+echo Write Test > "!tempfile!" 2>nul
+if exist "!tempfile!" (
+    del /f "!tempfile!" >nul 2>&1
+) else (
+    echo  Failed to create output directory: "!output_dir!"
+    echo  Verify your permissions
+    echo.
+    if not defined nopause (echo  Press a key to see Help & pause>nul & call :help & exit /b 11) else (exit /b 11)
+)
+
+del "!output_dir!\*_debug_*.txt" >nul 2>&1
 
 
 :: ______________________________________________________________________________ ::
@@ -237,6 +266,7 @@ for %%S in (%sites_clean%) do (
 )
 
 set "total_lines_printed=0"
+echo.
 call :PrintTable
 
 
@@ -265,7 +295,7 @@ for %%S in (%sites_clean%) do (
     )
 )
 
-if defined debug if defined DEBUG_FILES (
+if not defined nodebug if defined DEBUG_FILES (
     echo.
     echo  %COLOR_KO%+-------------------------------+%COLOR_RESET%
     echo  %COLOR_KO%^|         %COLOR_KO%DEBUG REPORT%COLOR_KO%          ^|%COLOR_RESET%
@@ -330,6 +360,7 @@ for %%S in (%protocols%) do (
     for %%E in (%specific_exclusions%) do if /i "%%E"=="%%S" set "specific_exclude_%%S=true"
     for %%I in (%specific_inclusions%) do if /i "%%I"=="%%S" set "specific_include_%%S=true"
 )
+
 call :UpdateProgress
 call :PrintTable
 
@@ -355,9 +386,10 @@ if "!%protocol%_results_%site%!"=="0" (
     set "cell_%protocol%_%site%=%COLOR_KO%KO%COLOR_RESET%"
 )
 set /a tests_completed_weighted+=!WEIGHT_%protocol%!
+:skip_ip4
 call :UpdateProgress
 call :PrintTable
-:skip_ip4
+
 
 
 
@@ -381,10 +413,9 @@ if "!%protocol%_results_%site%!"=="0" (
     set "cell_%protocol%_%site%=%COLOR_KO%KO%COLOR_RESET%"
 )
 set /a tests_completed_weighted+=!WEIGHT_%protocol%!
+:skip_ip6
 call :UpdateProgress
 call :PrintTable
-:skip_ip6
-
 
 
 :: Test Tracert IPv4
@@ -407,10 +438,9 @@ if !count! GEQ 2 (
     set "cell_%protocol%_%site%=%COLOR_KO%KO%COLOR_RESET%"
 )
 set /a tests_completed_weighted+=!WEIGHT_%protocol%!
+:skip_tr4
 call :UpdateProgress
 call :PrintTable
-:skip_tr4
-
 
 
 :: Test Tracert IPv6
@@ -433,10 +463,9 @@ if !count! GEQ 2 (
     set "cell_%protocol%_%site%=%COLOR_KO%KO%COLOR_RESET%"
 )
 set /a tests_completed_weighted+=!WEIGHT_%protocol%!
+:skip_tr6
 call :UpdateProgress
 call :PrintTable
-:skip_tr6
-
 
 
 :: Test TLS Handshake
@@ -449,6 +478,7 @@ if "!skip_test!"=="true" (
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
 call :UpdateProgress
 call :PrintTable
+chcp 437 >nul
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 "try { ^
     if ('%site%' -match '^https?://') {$site = '%site%' -replace '^https?://', ''} ^
@@ -465,6 +495,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     if ($sslStream) { $sslStream.Dispose() }; ^
     if ($tcpClient) { $tcpClient.Dispose() }; ^
 }"
+chcp 65001 >nul
 for /f "usebackq tokens=*" %%r in (`type "!output_dir!\%protocol%_output_%site%.txt"`) do set "%protocol%_results_%site%=%%r"
 if "!%protocol%_results_%site%!"=="1" (
     set "cell_%protocol%_%site%=%COLOR_OK%OK%COLOR_RESET%"
@@ -473,10 +504,9 @@ if "!%protocol%_results_%site%!"=="1" (
     set "cell_%protocol%_%site%=%COLOR_KO%KO%COLOR_RESET%"
 )
 set /a tests_completed_weighted+=!WEIGHT_%protocol%!
+:skip_tls
 call :UpdateProgress
 call :PrintTable
-:skip_tls
-
 
 
 :: Test HTTPS
@@ -489,6 +519,7 @@ if "!skip_test!"=="true" (
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
 call :UpdateProgress
 call :PrintTable
+chcp 437 >nul
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
 "try { ^
     if ('%site%' -notmatch '^https?://') {$site = 'https://%site%'} ^
@@ -502,6 +533,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     $_ ^| Out-File -FilePath '!output_dir!\%protocol%_debug_%site%.txt'; ^
     '0' ^| Out-File -FilePath '!output_dir!\%protocol%_output_%site%.txt'; ^
 }"
+chcp 65001 >nul
 for /f "usebackq tokens=*" %%r in (`type "!output_dir!\%protocol%_output_%site%.txt"`) do set "%protocol%_results_%site%=%%r"
 if "!%protocol%_results_%site%!"=="1" (
     set "cell_%protocol%_%site%=%COLOR_OK%OK%COLOR_RESET%"
@@ -510,10 +542,9 @@ if "!%protocol%_results_%site%!"=="1" (
     set "cell_%protocol%_%site%=%COLOR_KO%KO%COLOR_RESET%"
 )
 set /a tests_completed_weighted+=!WEIGHT_%protocol%!
+:skip_htp
 call :UpdateProgress
 call :PrintTable
-:skip_htp
-
 
 
 :: Test DNS
@@ -544,9 +575,9 @@ if errorlevel 1 (
     set "cell_%protocol%_%site%=%COLOR_KO%KO%COLOR_RESET%"
 )
 set /a tests_completed_weighted+=!WEIGHT_%protocol%!
+:skip_dns
 call :UpdateProgress
 call :PrintTable
-:skip_dns
 
 goto :eof
 
@@ -606,21 +637,10 @@ goto :eof
 set "site=%~1"
 set "protocol=%~2"
 set "skip_test=false"
-if defined specific_include_%protocol% (
-    set "skip_test=false"
-) else (
-    if defined global_only_%protocol% (
-        set "skip_test=false"
-    ) else (
-        if defined specific_exclude_%protocol% (
-            set "skip_test=true"
-        ) else (
-            if defined global_exclude_%protocol% (
-                set "skip_test=true"
-            )
-        )
-    )
-)
+if      defined specific_include_%protocol% (set "skip_test=false") ^
+else if defined specific_exclude_%protocol% (set "skip_test=true" ) ^
+else if defined global_only_%protocol%      (set "skip_test=false") ^
+else if defined global_exclude_%protocol%   (set "skip_test=true" )
 goto :eof
 
 
@@ -649,7 +669,6 @@ if defined !site!_include_!test! (
     )
 )
 goto :eof
-
 
 
 :rename_loop
@@ -853,7 +872,7 @@ goto :eof
 echo.
 echo.
 echo    =============================================================================
-echo                              Network Protocol Tester v1.0
+echo                              Network Protocol Tester v1.1
 echo                                        --- 
 echo                        Test Multiple Network Protocols Easily
 echo                                   ------------
@@ -890,8 +909,9 @@ echo       -----------
 echo       /site        domain[+++/---protocol]            Specify target websites [optionnal filter]        
 echo       /only        ip4/ip6/tr4/tr6/tls/htp/dns        Test only specified protocols    
 echo       /exclude     ip4/ip6/tr4/tr6/tls/htp/dns        Exclude specified protocols      
-echo       /debug       true/false - default true          Show infos for KO tests at end
-echo       /nopause     true/false - default false         Do not pause script at end
+echo       /nodebug     true/false - default false         True = Hide infos for KO tests at end
+echo       /nopause     true/false - default false         True = Do not pause script at end
+echo       /ouput       'C:\Path\to\logs'                  Default = 'current_script_path\Net_Protocols_Test'
 echo.
 echo.
 echo    RETURN CODES:
@@ -900,14 +920,14 @@ echo       Notice that failed test return codes will be combined. Fail IPv4 and 
 echo       -----------
 echo       1            Unexpected error
 echo       2            Argument not recognized
-echo       3            ^>=1 site test Failed IPv4
-echo       4            ^>=1 site test Failed IPv6
-echo       5            ^>=1 site test Failed Traceroute IPv4 = ^<2 adresses found / 5 hops
-echo       6            ^>=1 site test Failed Traceroute IPv6 = ^<2 adresses found / 5 hops
-echo       7            ^>=1 site test Failed TLS
-echo       8            ^>=1 site test Failed HTTPS
-echo       9            ^>=1 site test Failed DNS
-echo       11           Failed to create output directory: '!output_dir!'
+echo       3            At least 1 site test Failed IPv4
+echo       4            At least 1 site test Failed IPv6
+echo       5            At least 1 site test Failed Traceroute IPv4 = ^<2 adresses found / 5 hops
+echo       6            At least 1 site test Failed Traceroute IPv6 = ^<2 adresses found / 5 hops
+echo       7            At least 1 site test Failed TLS
+echo       8            At least 1 site test Failed HTTPS
+echo       9            At least 1 site test Failed DNS
+echo       11           Failed to create output directory -permissions?-: "!output_dir!"
 echo.
 echo.
 echo    OUTPUT:
@@ -927,27 +947,31 @@ echo.   ~~~~~~~~~~~~~
 echo. 
 echo       Basic usage:
 echo       -----------
-echo       %~n0.bat /site google.com microsoft.com yahoo.com
+echo       !n0!.bat /site google.com microsoft.com yahoo.com
+echo       -----------
 echo       - Tests all protocols for both sites
 echo.   
 echo. 
 echo       Test Only specified protocols - Global :
 echo       -----------
-echo       %~n0.bat /site google.com /only ip4 ip6
+echo       !n0!.bat /site google.com /only ip4 ip6
+echo       -----------
 echo       - Tests only IPv4 and IPv6 protocols
 echo         Notice that '/only' and '/exclude' are exclusive arguments. Do not mix them.
 echo.
 echo. 
 echo       Exclude specified protocols - Global :
 echo       -----------
-echo       %~n0.bat /site google.com /exclude ip4 ip6
+echo       !n0!.bat /site google.com /exclude ip4 ip6
+echo       -----------
 echo      - Test everything except IPv4 and IPv6 protocols
 echo        Notice that '/only' and '/exclude' are exclusive arguments. Do not mix them.
 echo.   
 echo. 
 echo       Include specified protocols - Site Specific :
 echo       -----------
-echo       %~n0.bat /site google.com+++ip4+++ip6 microsoft.com yahoo.com /exclude ip4 ip6
+echo       !n0!.bat /site google.com+++ip4+++ip6 microsoft.com yahoo.com /exclude ip4 ip6
+echo       -----------
 echo       - Exclude IPv4 and IPv6 for microsoft.com and yahoo.com
 echo         IPv4 and IPv6 still be tested for google because of '+++ip4+++ip6'
 echo         Notice that specific rules have piority on global rules
@@ -957,7 +981,8 @@ echo.
 echo. 
 echo       Exclude specified protocols - Site Specific :
 echo       -----------
-echo       %~n0.bat /site google.com---ip4+++dns microsoft.com yahoo.com /only ip4 ip6
+echo       !n0!.bat /site google.com---ip4+++dns microsoft.com yahoo.com /only ip4 ip6
+echo       -----------
 echo       - Test only IPv4 and IPv6 for microsoft.com and yahoo.com
 echo         Test IPv6 and DNS for google.com because of '---ip4+++dns'
 echo         Notice that specific rules have piority on global rules
@@ -966,7 +991,8 @@ echo.
 echo. 
 echo       Disable debug showing at end, and disable pause at end :
 echo       -----------
-echo       %~n0.bat /site google.com /debug false /nopause true
+echo       !n0!.bat /site google.com /nodebug true /nopause true
+echo       -----------
 echo.   
 echo.   
 echo    =============================================================================
