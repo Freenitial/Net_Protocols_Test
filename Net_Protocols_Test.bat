@@ -267,7 +267,9 @@ for %%S in (%sites_clean%) do (
 
 set "total_lines_printed=0"
 echo.
+call :UpdateProgress
 call :PrintTable
+
 
 
 
@@ -374,7 +376,6 @@ if "!skip_test!"=="true" (
     goto :skip_%protocol%
 )
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
-call :UpdateProgress
 call :PrintTable
 ping -n 4 -4 %site% > "!output_dir!\%protocol%_debug_%site%.txt" 2>&1
 echo !errorlevel!> "!output_dir!\%protocol%_output_%site%.txt"
@@ -401,7 +402,6 @@ if "!skip_test!"=="true" (
     goto :skip_%protocol%
 )
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
-call :UpdateProgress
 call :PrintTable
 ping -n 4 -6 %site% > "!output_dir!\%protocol%_debug_%site%.txt" 2>&1
 echo !errorlevel!> "!output_dir!\%protocol%_output_%site%.txt"
@@ -426,7 +426,6 @@ if "!skip_test!"=="true" (
     goto :skip_%protocol%
 )
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
-call :UpdateProgress
 call :PrintTable
 tracert -h 5 -4 %site% > "!output_dir!\%protocol%_debug_%site%.txt" 2>&1
 call :CountTracertHops "!output_dir!\%protocol%_debug_%site%.txt" %protocol% %site%
@@ -451,7 +450,6 @@ if "!skip_test!"=="true" (
     goto :skip_%protocol%
 )
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
-call :UpdateProgress
 call :PrintTable
 tracert -h 5 -6 %site% > "!output_dir!\%protocol%_debug_%site%.txt" 2>&1
 call :CountTracertHops "!output_dir!\%protocol%_debug_%site%.txt" %protocol% %site%
@@ -476,7 +474,6 @@ if "!skip_test!"=="true" (
     goto :skip_%protocol%
 )
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
-call :UpdateProgress
 call :PrintTable
 chcp 437 >nul
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -517,7 +514,6 @@ if "!skip_test!"=="true" (
     goto :skip_%protocol%
 )
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
-call :UpdateProgress
 call :PrintTable
 chcp 437 >nul
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -555,7 +551,6 @@ if "!skip_test!"=="true" (
     goto :skip_%protocol%
 )
 set "cell_%protocol%_%site%=%COLOR_WORKING%/ %COLOR_RESET%"
-call :UpdateProgress
 call :PrintTable
 nslookup -type=AAAA %site% > "!output_dir!\%protocol%_debug_%site%.txt" 2>&1
 set "firstLine=" & set "lastLine="
@@ -753,64 +748,54 @@ goto :eof
 :UpdateProgress
 setlocal enabledelayedexpansion
 if %tests_completed_weighted% GTR 0 (
-    set /a "percent=(tests_completed_weighted*100)/total_weighted_tests"
+    set /a "percent=tests_completed_weighted*100/total_weighted_tests"
     if !percent! GTR 100 set "percent=100"
-) else (
-    set "percent=0"
+) else set "percent=0"
+set /a "progress_chars=percent*76/100"
+set "clean_time=%TIME: =%"
+for /F "tokens=1-4 delims=:.," %%H in ("%clean_time%") do (
+    set "hh=%%H" & set "mm=%%I" & set "ss=%%J"
+    if "!hh:~0,1!"==" " set "hh=!hh:~1!"
+    if "!hh!"=="" set "hh=0"
+    if "!mm!"=="" set "mm=0" 
+    if "!ss!"=="" set "ss=0"
+    set /A "currentTime=(1%hh%-100)*3600+(1%mm%-100)*60+(1%ss%-100)"
 )
-set /a "progress_chars=(percent*76)/100"
-for /F "tokens=1-4 delims=:.," %%H in ("%TIME%") do (
-    set /A "currentTime=%%H*3600+%%I*60+%%J"
-)
-set /A "elapsedTime=currentTime - startTime"
-if !elapsedTime! LSS 0 set /A elapsedTime+=86400
-if !elapsedTime! LSS 1 set /A elapsedTime=1
-if not defined initialEstimatedTotalTime (
-    set "initialEstimatedTotalTime=%total_weighted_tests%"
-)
+set /A "elapsedTime=currentTime-startTime"
+if !elapsedTime! LSS 0 set /A "elapsedTime+=86400"
+if !elapsedTime! LSS 1 set /A "elapsedTime=1"
+if not defined initialEstimatedTotalTime set "initialEstimatedTotalTime=%total_weighted_tests%"
 if %tests_completed_weighted% GTR 0 (
-    set /A "estimatedTotalTimeFromProgress = (elapsedTime * total_weighted_tests) / tests_completed_weighted"
-    set /A "alpha = ((total_weighted_tests - tests_completed_weighted) * 100) / total_weighted_tests"
+    set /A "estimatedTotalTimeFromProgress=elapsedTime*total_weighted_tests/tests_completed_weighted"
+    set /A "alpha=(total_weighted_tests-tests_completed_weighted)*100/total_weighted_tests"
     if !alpha! LSS 0 set "alpha=0"
     if !alpha! GTR 100 set "alpha=100"
-    set /A "estimatedTotalTime = (alpha * initialEstimatedTotalTime + (100 - alpha) * estimatedTotalTimeFromProgress) / 100"
-    set /A "remainingTime = estimatedTotalTime - elapsedTime"
+    set /A "estimatedTotalTime=(alpha*initialEstimatedTotalTime+(100-alpha)*estimatedTotalTimeFromProgress)/100"
+    set /A "remainingTime=estimatedTotalTime-elapsedTime"
     if !remainingTime! LSS 0 set "remainingTime=0"
 ) else (
-    set /A "remainingTime = initialEstimatedTotalTime - elapsedTime"
+    set /A "remainingTime=initialEstimatedTotalTime-elapsedTime"
     if !remainingTime! LSS 0 set "remainingTime=0"
 )
 call :FormatTime !elapsedTime! elapsedTimeStr
 call :FormatTime !remainingTime! remainingTimeStr
-set "total_header_length=76"
-set "text=INTERNET TEST by Freenitial"
-set "text_length=27"
-set /a "text_start_pos=(total_header_length - text_length)/2"
-set /a "text_end_pos=text_start_pos + text_length -1"
-set "elapsedTimeText=Elapsed: !elapsedTimeStr!"
-set "remainingTimeText=Remain: !remainingTimeStr!"
-set "elapsedTime_length=14"
-set "remainingTime_length=13"
-set /a "elapsedTime_start_pos=2"
-set /a "elapsedTime_end_pos=elapsedTime_start_pos + elapsedTime_length -1"
-set /a "remainingTime_start_pos=total_header_length - remainingTime_length"
-set /a "remainingTime_end_pos=remainingTime_start_pos + remainingTime_length -1"
+set "text=INTERNET TEST by Freenitial" & set "text_length=27"
+set /a "text_start_pos=(76-text_length)/2,text_end_pos=text_start_pos+text_length-1"
+set "elapsedTimeText=Elapsed: !elapsedTimeStr!" & set "remainingTimeText=Remain: !remainingTimeStr!"
+set /a "elapsedTime_start_pos=2,elapsedTime_end_pos=15,remainingTime_start_pos=63,remainingTime_end_pos=75"
 set "header_line="
-for /L %%p in (1,1,%total_header_length%) do (
-    if %%p LEQ !progress_chars! (
-        set "char_color=!COLOR_TEXT!!COLOR_PROGRESS!"
-    ) else (
-        set "char_color=!COLOR_TEXT!!COLOR_REMAIN!"
-    )
+for /L %%p in (1,1,76) do (
+    set "char_color=!COLOR_TEXT!!COLOR_REMAIN!"
+    if %%p LEQ !progress_chars! set "char_color=!COLOR_TEXT!!COLOR_PROGRESS!"
     set "char= "
     if %%p GEQ !elapsedTime_start_pos! if %%p LEQ !elapsedTime_end_pos! (
-        set /a "char_pos=%%p - elapsedTime_start_pos"
+        set /a "char_pos=%%p-elapsedTime_start_pos"
         call :GetChar "!elapsedTimeText!" !char_pos! char
     ) else if %%p GEQ !text_start_pos! if %%p LEQ !text_end_pos! (
-        set /a "char_pos=%%p - text_start_pos"
+        set /a "char_pos=%%p-text_start_pos"
         call :GetChar "!text!" !char_pos! char
     ) else if %%p GEQ !remainingTime_start_pos! if %%p LEQ !remainingTime_end_pos! (
-        set /a "char_pos=%%p - remainingTime_start_pos"
+        set /a "char_pos=%%p-remainingTime_start_pos"
         call :GetChar "!remainingTimeText!" !char_pos! char
     )
     set "header_line=!header_line!!char_color!!char!"
@@ -872,7 +857,7 @@ goto :eof
 echo.
 echo.
 echo    =============================================================================
-echo                              Network Protocol Tester v1.1
+echo                              Network Protocol Tester v1.2
 echo                                        --- 
 echo                        Test Multiple Network Protocols Easily
 echo                                   ------------
@@ -886,7 +871,7 @@ echo       Tests multiple network protocols and services for given websites. Pro
 echo       visual feedback and detailed results for connectivity testing.
 echo.
 echo       You need to specify 1+ website to test, at begin of the script, or by using arguments
-echo       Be careful to provide simples addresses, not including special caracters like '%%'
+echo       Be careful to provide simples addresses, not including special caracters like '%%' or '()'
 echo.
 echo.
 echo    PROTOCOLS:
@@ -987,6 +972,7 @@ echo       - Test only IPv4 and IPv6 for microsoft.com and yahoo.com
 echo         Test IPv6 and DNS for google.com because of '---ip4+++dns'
 echo         Notice that specific rules have piority on global rules
 echo         '---' work the same as global exclude, for a specified site
+echo         '---' can override a global inclusion from /only
 echo.
 echo. 
 echo       Disable debug showing at end, and disable pause at end :
