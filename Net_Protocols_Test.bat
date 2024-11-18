@@ -867,10 +867,8 @@ goto :eof
 echo.
 echo.
 echo    =============================================================================
-echo                           Network Protocols Tester v1.3
-echo                                        --- 
-echo                       Test Multiple Network Protocols Easily
-echo                                   ------------
+echo                               Net Protocols Test v1.3
+echo                                        ---
 echo                           Author : Freenitial on GitHub
 echo    =============================================================================
 echo.
