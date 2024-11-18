@@ -9,7 +9,6 @@ set "dp0=%~dp0"
 set "n0=%~n0"
 
 
-
 set protocols=ip4 ip6 tr4 tr6 tls htp dns
 
 :: ______________________________________________________________________________ ::
@@ -45,7 +44,7 @@ if defined error_arg (
     if defined nodebug_error (
         echo  Argument not recognized "%arg_not_recognized%" specified after /nodebug
         echo  Valid values are : true, false, 1, 0. 
-        echo                     Nothing specified = true --^> debug will be shown at end.
+        echo                     Nothing specified = true --^> debug will not be shown at end.
     )
     if not defined nopause (echo  Press a key to see Help & pause >nul & goto :help) else (exit /b 2)
 )
@@ -156,6 +155,7 @@ goto :collect_excludes
 shift
 set "nodebug=true"
 set "arg1=%~1"
+if not defined arg1 goto :parse_args
 if "!arg1:~0,1!"=="/" goto :parse_args
 set "arg=%~1"
 if /i "%~1"=="true"  set "nodebug=true"    & set "recognized_nodebug_arg=true"
