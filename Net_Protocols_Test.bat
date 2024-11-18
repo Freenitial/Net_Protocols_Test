@@ -86,6 +86,7 @@ if /i "%~1"=="/only"    goto :handle_only
 if /i "%~1"=="/exclude" goto :handle_exclude
 if /i "%~1"=="/nodebug" goto :handle_nodebug
 if /i "%~1"=="/output"  goto :handle_output
+set "error_arg=true"
 set "arg_not_recognized=%~1" & goto :eof
 
 
@@ -183,7 +184,8 @@ if not defined sites (
 if not defined nodebug    set "nodebug=false"
 if "%nodebug%"=="false"   set "nodebug="
 
-if not defined output_dir set "output_dir=!dp0!Net_Protocols_Test"
+if not defined output_dir (set "output_dir=!dp0!Net_Protocols_Test") else set "output_dir=!output_dir!\Net_Protocols_Test"
+mkdir "!output_dir!" 2>nul
 set "tempfile=!output_dir!\test_write.tmp"
 echo Write Test > "!tempfile!" 2>nul
 if exist "!tempfile!" (
@@ -255,8 +257,14 @@ for %%S in (%sites_clean%) do (
 
 set /a tests_completed_weighted=0
 
-for /F "tokens=1-4 delims=:.," %%H in ("%TIME%") do (
-    set /A "startTime=%%H*3600+%%I*60+%%J"
+set "clean_time=%TIME: =%"
+for /F "tokens=1-4 delims=:.," %%H in ("%clean_time%") do (
+    set "hh=%%H" & set "mm=%%I" & set "ss=%%J"
+    if "!hh:~0,1!"==" " set "hh=!hh:~1!"
+    if "!hh!"=="" set "hh=0"
+    if "!mm!"=="" set "mm=0"
+    if "!ss!"=="" set "ss=0"
+    set /A "startTime=(1!hh!-100)*3600 + (1!mm!-100)*60 + (1!ss!-100)"
 )
 set "DEBUG_FILES="
 for %%S in (%sites_clean%) do (
@@ -759,11 +767,13 @@ for /F "tokens=1-4 delims=:.," %%H in ("%clean_time%") do (
     if "!hh!"=="" set "hh=0"
     if "!mm!"=="" set "mm=0" 
     if "!ss!"=="" set "ss=0"
-    set /A "currentTime=(1%hh%-100)*3600+(1%mm%-100)*60+(1%ss%-100)"
+    set /A "currentTime=(1!hh!-100)*3600 + (1!mm!-100)*60 + (1!ss!-100)"
 )
 set /A "elapsedTime=currentTime-startTime"
 if !elapsedTime! LSS 0 set /A "elapsedTime+=86400"
-if !elapsedTime! LSS 1 set /A "elapsedTime=1"
+if !elapsedTime! LSS 1 (
+    set /A "elapsedTime=currentTime-startTime"
+)
 if not defined initialEstimatedTotalTime set "initialEstimatedTotalTime=%total_weighted_tests%"
 if %tests_completed_weighted% GTR 0 (
     set /A "estimatedTotalTimeFromProgress=elapsedTime*total_weighted_tests/tests_completed_weighted"
@@ -857,9 +867,9 @@ goto :eof
 echo.
 echo.
 echo    =============================================================================
-echo                              Network Protocol Tester v1.2
+echo                           Network Protocols Tester v1.3
 echo                                        --- 
-echo                        Test Multiple Network Protocols Easily
+echo                       Test Multiple Network Protocols Easily
 echo                                   ------------
 echo                           Author : Freenitial on GitHub
 echo    =============================================================================
@@ -896,7 +906,7 @@ echo       /only        ip4/ip6/tr4/tr6/tls/htp/dns        Test only specified p
 echo       /exclude     ip4/ip6/tr4/tr6/tls/htp/dns        Exclude specified protocols      
 echo       /nodebug     true/false - default false         True = Hide infos for KO tests at end
 echo       /nopause     true/false - default false         True = Do not pause script at end
-echo       /ouput       'C:\Path\to\logs'                  Default = 'current_script_path\Net_Protocols_Test'
+echo       /ouput       'C:\Path\to\logs\directory'        Default = 'current_script_path\Net_Protocols_Test'
 echo.
 echo.
 echo    RETURN CODES:
@@ -972,7 +982,7 @@ echo       - Test only IPv4 and IPv6 for microsoft.com and yahoo.com
 echo         Test IPv6 and DNS for google.com because of '---ip4+++dns'
 echo         Notice that specific rules have piority on global rules
 echo         '---' work the same as global exclude, for a specified site
-echo         '---' can override a global inclusion from /only
+echo         '---' can override a global inclusion of /only
 echo.
 echo. 
 echo       Disable debug showing at end, and disable pause at end :
