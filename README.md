@@ -1,110 +1,136 @@
 
-## **Net Protocols Test**
+# Net Protocols Test
 
- Description
-|                           ---                         |
-|                                                       |
-|   **Test Multiple Network Protocols Easily**          |
-|                                                       |
+**Test Multiple Network Protocols Easily**
 
---------------------
+---
 
-### Features ✨ 
+## Features ✨ 
 
 - 🌍 Testing various protocols
 - 📊 Visual table summary with progress in real time
 - ✅ Debugging information for failed tests
 - 🚀 Support multiple websites and rules at the same time
 
---------------------  
+---
 
-### Supported Arguments 🛠️
+## Supported Arguments 🛠️
 
-`/site` is **required** if you don't pre-fill the variable `set "sites=" at the top of the script
+`/site` is **required** if you don't pre-fill the variable `set "sites="` at the top of the script.
 
-| **Argument** | **Value(s)**                             | **Description**                                     |
-|--------------|------------------------------------------|-----------------------------------------------------|
-| `/site`      | domain[+++/---protocol]                  | Specifies target websites [with optional filters]   |
-| `/only`      | ip4, ip6, tr4, tr6, tls, htp, dns        | Tests only the specified protocols                  |
-| `/exclude`   | ip4, ip6, tr4, tr6, tls, htp, dns        | Excludes specified protocols                        |
-| `/debug`     | true/false (default: true)               | Shows debug information for failed tests            |
-| `/nopause`   | true/false (default: false)              | Skips pause at the end of the script                |
+⚠️ **Site Formatting:** Provide simple website addresses without special characters like `%` or `()`.
 
---------------------
+| **Argument**     | **Value(s)**                              | **Description**                                                   |
+|------------------|-------------------------------------------|-------------------------------------------------------------------|
+| **`/site`**      | `domain`[`+++`/`---` `protocol`]          | Specifies target websites (with optionnal added `+++`/`---` rules |
+| **`/only`**      | `ip4` `ip6` `tr4` `tr6` `tls` `htp` `dns` | Tests only the specified protocols                                |
+| **`/exclude`**   | `ip4` `ip6` `tr4` `tr6` `tls` `htp` `dns` | Excludes specified protocols                                      |
+| **`/debug`**     | `true` `false`  (default: `true`)         | Shows debug information for failed tests                          |
+| **`/nopause`**   | `true` `false`  (default: `false`)        | Skips pause at the end of the script                              |
+| **`/output`**    | `C:\Path\to\logs\directory`               | Specifies output directory for logs (default: current directory)  |
 
-### Supported Protocols 🌍
+---
 
-| **Protocol** | **Description**                           |
-|--------------|-------------------------------------------|
-| `ip4`        | Ping IPv4                                |
-| `ip6`        | Ping IPv6                                |
-| `tr4`        | Traceroute IPv4                          |
-| `tr6`        | Traceroute IPv6                          |
-| `tls`        | TLS 1.2 handshake                        |
-| `htp`        | HTTPS connectivity                       |
-| `dns`        | DNS resolution using `nslookup`          |
+## Supported Protocols and return codes 🌍
 
---------------------
+| **Return Code** | **Protocol** | **Return Code Description**                      |
+|-----------------|--------------|--------------------------------------------------|
+| `1`             |              | Unexpected error                                 |
+| `2`             |              | Argument not recognized                          |
+| **`3`**         |   `ip4`      | Failed test: Ping IPv4                           |
+| **`4`**         |   `ip6`      | Failed test: Ping IPv6                           |
+| **`5`**         |   `tr4`      | Failed test: Traceroute IPv4                     |
+| **`6`**         |   `tr6`      | Failed test: Traceroute IPv6                     |
+| **`7`**         |   `tls`      | Failed test: TLS handshake                       |
+| **`8`**         |   `htp`      | Failed test: HTTPS connectivity                  |
+| **`9`**         |   `dns`      | Failed test: DNS resolution                      |
+| **`11`**        |              | Failed to create output directory                |
 
-### How to Use 📘
+
+**Return codes will be combined in case of multiple Failed tests.**
+
+**For example, in case of `Fail IPv4` + `Fail DNS`, return code will be `39`**
+
+---
+
+
+## How to Use 📘
 
 ```
-Basic Usage:
-Net_Protocols_Test.bat /site google.com microsoft.com yahoo.com
-- Tests all protocols for the provided sites.
+🟢 TESTING MULTIPLE SITES
+---------------------------------------
+   ⚙️ Command:
+       Net_Protocols_Test.bat /site google.com microsoft.com yahoo.com
 
-Test Only Specific Protocols:
-Net_Protocols_Test.bat /site google.com /only ip4 ip6
-- Tests only IPv4 and IPv6 protocols.
+   📖 Description:
+       - Tests all supported protocols: IPv4, IPv6, Traceroute, TLS, HTTPS, and DNS 
+         for the specified sites.
 
-Exclude Specific Protocols:
-Net_Protocols_Test.bat /site google.com /exclude ip4 ip6
-- Excludes IPv4 and IPv6 tests.
 
-Advanced Usage: Include or Exclude Protocols Per Site:
-Net_Protocols_Test.bat /site google.com+++ip4+++ip6 microsoft.com yahoo.com /exclude ip4 ip6
-- Includes IPv4 and IPv6 for `google.com`.
-- Excludes IPv4 and IPv6 for `microsoft.com` and `yahoo.com`.
+🟢 TESTING SPECIFIC PROTOCOLS (GLOBAL)
+---------------------------------------
+   ⚙️ Command:
+       Net_Protocols_Test.bat /site google.com /only ip4 ip6
 
-Debug and No-Pause Mode:
-Net_Protocols_Test.bat /site google.com /debug false /nopause true
-- Disables debug output and skips the pause at the end of the script.
+   📖 Description:
+       - Runs tests only for IPv4 and IPv6 protocols.
+       - ⚠️ `/only` and `/exclude` cannot be used together.
+
+
+🟢 EXCLUDING SPECIFIC PROTOCOLS (GLOBAL)
+---------------------------------------
+   ⚙️ Command:
+       Net_Protocols_Test.bat /site google.com /exclude ip4 ip6
+
+   📖 Description:
+       - Tests everything except IPv4 and IPv6 protocols.
+       - ⚠️ `/only` and `/exclude` cannot be used together.
+
+
+🟢 INCLUDING OR EXCLUDING PROTOCOLS FOR SPECIFIC SITES
+---------------------------------------
+   ⚙️ Command:
+       Net_Protocols_Test.bat /site google.com+++ip4+++ip6 microsoft.com yahoo.com /exclude ip4 ip6
+
+   📖 Description:
+       - IPv4 and IPv6 are included **only for google.com** (due to `+++ip4+++ip6`).
+       - IPv4 and IPv6 are excluded for microsoft.com and yahoo.com (global `/exclude`).
+       - Specific rules (like `+++`) **override global rules**.
+
+
+🟢 OVERRIDING GLOBAL RULES FOR SPECIFIC SITES
+---------------------------------------
+   ⚙️ Command:
+       Net_Protocols_Test.bat /site google.com---ip4+++dns microsoft.com /only ip4 ip6
+
+   📖 Description:
+       - For `google.com`:
+           * IPv4 is excluded (`---ip4`).
+           * DNS is included (`+++dns`), overriding the global `/only ip4 ip6`.
+       - For `microsoft.com`:
+           * Only IPv4 and IPv6 are tested (global `/only ip4 ip6`).
+
+
+🟢 DEBUGGING AND NO-PAUSE MODE
+---------------------------------------
+   ⚙️ Command:
+       Net_Protocols_Test.bat /site google.com /debug false /nopause true
+
+   📖 Description:
+       - Disables debug output for failed tests.
+       - Skips the pause at the end of the script.
 ```
 
-#### Notes:
-- **Site Formatting:** Provide simple website addresses without special characters like `%`.
-- **Protocol Rules:**
-  - `+++protocol` overrides global exclusions for a specific protocol on a site.
-  - `---protocol` excludes a specific protocol for a site.
+---
 
---------------------
-
-### Return Codes 📋
-
-| **Code** | **Meaning**                                      |
-|----------|--------------------------------------------------|
-| `1`      | Unexpected error                                 |
-| `2`      | Argument not recognized                          |
-| `3`      | Failed test: Ping IPv4                           |
-| `4`      | Failed test: Ping IPv6                           |
-| `5`      | Failed test: Traceroute IPv4                    |
-| `6`      | Failed test: Traceroute IPv6                    |
-| `7`      | Failed test: TLS handshake                      |
-| `8`      | Failed test: HTTPS connectivity                 |
-| `9`      | Failed test: DNS resolution                     |
-| `11`     | Failed to create output directory               |
-
---------------------
-
-### Outputs 📂
+## Outputs
 
 - **Symbols in the table:**
   - `/` : Test in progress
   - `>` : Test skipped
   - `OK` : Test passed
   - `KO` : Test failed
+
 - Debug files for failed tests are saved in the output directory.
 
---------------------
-
-Feel free to contribute or report issues.
+---
