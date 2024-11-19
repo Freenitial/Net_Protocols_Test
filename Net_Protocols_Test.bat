@@ -19,7 +19,7 @@ set protocols=ip4 ip6 tr4 tr6 tls htp dns
 REM Use "Net_Protocols_Test.bat /help" to see tutorial
 REM Calling this script with arguments will override corresponding settings
 
-set "sites=google.com"
+set "sites="
 ::  "sites=google.com microsoft.com yahoo.com"
 ::   Net_Protocols_Test.bat /site google.com microsoft.com yahoo.com
 
@@ -38,6 +38,9 @@ set "nodebug=false"
 set "nopause=false"
 ::   Do not pause at end
 ::   Net_Protocols_Test.bat /nopause /site google.com
+
+set "output_dir="
+::   Default : Path\To\Script\Net_Protocols_Test
 
 
 :: ______________________________________________________________________________ ::
@@ -205,12 +208,10 @@ if not defined recognized_nodebug_arg (set "error_arg=true" & set "nodebug_error
 shift
 goto :parse_args
 
-
 goto :eof
 
 
 :after_args
-
 
 if not defined sites (
     echo  Please provide one or more websites addresses to test
