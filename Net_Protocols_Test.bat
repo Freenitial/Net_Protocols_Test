@@ -4,31 +4,40 @@ cd /d "%~dp0"
 setlocal enabledelayedexpansion
 set "dp0=%~dp0" & set "n0=%~n0"
 
-
+::  Do not modify this list
 set protocols=ip4 ip6 tr4 tr6 tls htp dns
+::  Ping IPv4, Ping IPv6, Traceroute IPv4, Traceroute IPv6, TLS 1.2, HTTPS, DNS lookup
 
 :: ______________________________________________________________________________ ::
 ::                                                                                ::
 ::                                 MANUAL SETTINGS                                ::
+::                                                                                ::
+::                  Use "Net_Protocols_Test.bat /help" to see tutorial            ::
 :: ______________________________________________________________________________ ::
 
 
+REM Use "Net_Protocols_Test.bat /help" to see tutorial
 REM Calling this script with arguments will override corresponding settings
 
 set "sites=google.com"
 ::  "sites=google.com microsoft.com yahoo.com"
+::   Net_Protocols_Test.bat /site google.com microsoft.com yahoo.com
 
 set "test_only_protocols="
 ::  "test_only_protocols=ip4 ip6"
+::   Net_Protocols_Test.bat /only ip4 ip6 /site google.com
 
 set "test_exclude_protocols="
 ::  "test_exclude_protocols=tr4 tr6"
+::   Net_Protocols_Test.bat /exclude tr4 tr6 /site google.com
 
 set "nodebug=false"
 ::   Do not show logs for KO results at end
+::   Net_Protocols_Test.bat /nodebug /site google.com
 
 set "nopause=false"
 ::   Do not pause at end
+::   Net_Protocols_Test.bat /nopause /site google.com
 
 
 :: ______________________________________________________________________________ ::
@@ -228,7 +237,6 @@ if exist "!tempfile!" (
 
 
 
-
 :: ______________________________________________________________________________ ::
 ::                                                                                ::
 ::                                       MAIN                                     ::
@@ -382,14 +390,12 @@ if defined KO_Protocols (
 
 :TestSite
 
-
 set "site=%~1"
 set "specific_exclusions=%~2"
 set "specific_inclusions=%~3"
 
 call :UpdateProgress
 call :PrintTable
-
 
 
 :: Test Ping IPv4
