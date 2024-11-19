@@ -221,6 +221,9 @@ if not defined sites (
 
 if not defined nodebug    set "nodebug=false"
 if "%nodebug%"=="false"   set "nodebug="
+if "%nodebug%"=="0"       set "nodebug="
+if "%nopause%"=="false"   set "nopause="
+if "%nopause%"=="0"       set "nopause="
 
 if not defined output_dir (set "output_dir=!dp0!Net_Protocols_Test") else set "output_dir=!output_dir!\Net_Protocols_Test"
 mkdir "!output_dir!" 2>nul
@@ -365,9 +368,18 @@ for %%F in (!DEBUG_FILES!) do (
 )
 if defined KO_Protocols (
     echo.
-    echo  %COLOR_KO%Some tests failed. Exiting with code: !KO_Protocols!%COLOR_RESET%
+    set "error_msg="
+    for %%P in ("3=ipv4" "4=ip6" "5=tr4" "6=tr6" "7=tls" "8=htp" "9=dns") do (
+        for /f "tokens=1,2 delims==" %%B in (%%P) do (
+            echo !KO_Protocols! | findstr /c:"%%B" >nul && (
+                if defined error_msg (set "error_msg=!error_msg!, ") 
+                set "error_msg=!error_msg!%%B=%%C"
+            )
+        )
+    )
+    echo  %COLOR_KO%Some tests failed. Exiting with code: !KO_Protocols! ^(!error_msg!^)%COLOR_RESET%
     echo.
-    if not defined nopause (echo  Press any key to exit... & echo. & pause >nul)
+    if not defined nopause (echo  Press any key to exit... & pause >nul)
     del "!output_dir!\*_output_*.txt" >nul 2>&1
     del "!output_dir!\*_temp*.txt" >nul 2>&1
     exit /b !KO_Protocols!
@@ -666,11 +678,9 @@ goto :eof
 
 
 :ShouldRunTest
-set "protocol=%~1"
 set "skip_test=false"
-set "site=%~4"
-set "specific_exclusions=%~2"
-set "specific_inclusions=%~3"
+set "protocol=%~1" & set "site=%~4"
+set "specific_exclusions=%~2" & set "specific_inclusions=%~3"
 for %%E in (%specific_exclusions%) do (if %%E==%protocol% set "%site%_exclude_%protocol%=true")
 for %%I in (%specific_inclusions%) do (if %%I==%protocol% set "%site%_include_%protocol%=true")
 if      defined %site%_include_%protocol% (set "skip_test=false") ^
@@ -682,38 +692,27 @@ goto :eof
 
 
 :clean_domain
-set "checkTripleDash=!site:~-6,3!"
-set "foundmarker="
+set "checkTripleDash=!site:~-6,3!" & set "foundmarker="
 if "!checkTripleDash!"=="+++" set "foundmarker=+"
 if "!checkTripleDash!"=="---" set "foundmarker=-"
 if defined foundmarker (
     set "protocol=!site:~-3,3!"
     set "site=!site:~0,-6!"
     if "%foundmarker%"=="-" (
-        if defined test_exclude_protocols_%~1 (
-            set "test_exclude_protocols_%~1=!test_exclude_protocols_%~1!;!protocol!"
-        ) else (
-            set "test_exclude_protocols_%~1=!protocol!"
-        )
+        if defined test_exclude_protocols_%~1 (set "test_exclude_protocols_%~1=!test_exclude_protocols_%~1!;!protocol!") ^
+        else (set "test_exclude_protocols_%~1=!protocol!")
     ) else if "%foundmarker%"=="+" (
-        if defined test_only_protocols_%~1 (
-            set "test_only_protocols_%~1=!test_only_protocols_%~1!;!protocol!"
-        ) else (
-            set "test_only_protocols_%~1=!protocol!"
-        )
+        if defined test_only_protocols_%~1 (set "test_only_protocols_%~1=!test_only_protocols_%~1!;!protocol!") ^
+        else (set "test_only_protocols_%~1=!protocol!")
     )
-    goto clean_domain
+    goto :clean_domain
 ) else (
     set "site_clean=!site:*://=!"
     for /F "delims=/" %%A in ("!site_clean!") do set "site_clean=%%A"
-    if defined sites_clean (
-        set "sites_clean=!sites_clean!;!site_clean!"
-    ) else (
-        set "sites_clean=!site_clean!"
-    )
+    if defined sites_clean (set "sites_clean=!sites_clean!;!site_clean!") ^
+    else (set "sites_clean=!site_clean!")
     if defined test_exclude_protocols_%~1 set "test_exclude_protocols_!site_clean!=!test_exclude_protocols_%~1!"
     if defined test_only_protocols_%~1 set "test_only_protocols_!site_clean!=!test_only_protocols_%~1!"
-    
     goto :eof
 )
 
