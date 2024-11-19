@@ -2,19 +2,52 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 setlocal enabledelayedexpansion
-
-REM MANUALLY: set "sites=google.com microsoft.com yahoo.com"
-set "sites="  
-set "dp0=%~dp0"
-set "n0=%~n0"
+set "dp0=%~dp0" & set "n0=%~n0"
 
 
 set protocols=ip4 ip6 tr4 tr6 tls htp dns
 
 :: ______________________________________________________________________________ ::
 ::                                                                                ::
+::                                 MANUAL SETTINGS                                ::
+:: ______________________________________________________________________________ ::
+
+
+REM Calling this script with arguments will override corresponding settings
+
+set "sites=google.com"
+::  "sites=google.com microsoft.com yahoo.com"
+
+set "test_only_protocols="
+::  "test_only_protocols=ip4 ip6"
+
+set "test_exclude_protocols="
+::  "test_exclude_protocols=tr4 tr6"
+
+set "nodebug=false"
+::   Do not show logs for KO results at end
+
+set "nopause=false"
+::   Do not pause at end
+
+
+:: ______________________________________________________________________________ ::
+::                                                                                ::
 ::                               ARGUMENTS HANDLING                               ::
 :: ______________________________________________________________________________ ::
+
+set "global_only_active="
+if defined test_only_protocols (
+    for %%O in (%test_only_protocols%) do (
+        set "global_only_%%O=true"
+        set "global_only_active=true"
+    )
+)
+if defined test_exclude_protocols (
+    for %%E in (%test_exclude_protocols%) do (
+        set "global_exclude_%%E=true"
+    )
+)
 
 if /i "%~1"=="/?"       goto :help
 if /i "%~1"=="-?"       goto :help
@@ -24,6 +57,7 @@ if /i "%~1"=="-help"    goto :help
 if /i "%~1"=="--help"   goto :help
 
 call :check_nopause %*
+if "%ARGS%"=="" goto :after_args
 call :parse_args %ARGS%
 if defined error_arg (
     if defined arg_not_recognized (
@@ -50,8 +84,6 @@ if defined error_arg (
 )
 goto :after_args
 
-
-
 :check_nopause
 set "all_args=%*"
 set "extract_next="
@@ -74,13 +106,12 @@ for %%A in (%all_args%) do (
         set "extracted="
     )
 )
-set "ARGS=!args_remaining:~1!"
+if defined args_remaining set "ARGS=!args_remaining:~1!"
 goto :eof
-
 
 :parse_args
 if defined error_arg    goto :eof
-if "%~1"==""            goto :eof
+if    "%~1"==""         goto :eof
 if /i "%~1"=="/site"    goto :handle_site
 if /i "%~1"=="/only"    goto :handle_only
 if /i "%~1"=="/exclude" goto :handle_exclude
@@ -88,7 +119,6 @@ if /i "%~1"=="/nodebug" goto :handle_nodebug
 if /i "%~1"=="/output"  goto :handle_output
 set "error_arg=true"
 set "arg_not_recognized=%~1" & goto :eof
-
 
 :handle_output
 shift
@@ -98,7 +128,6 @@ if  "!arg1:~0,1!"=="/" (set "error_arg=true" & set "output_invalid_error=true" &
 set "output_dir=%~1"
 shift
 goto :parse_args
-
 
 :handle_site
 shift
@@ -112,10 +141,11 @@ set "resetedsites=1"
 shift
 goto :collect_sites
 
-
 :handle_only
 shift
-:collect_onlys
+for %%P in (%protocols%) do set "global_only_%%P="
+set "global_only_active="
+:collect_test_only_protocols
 if "%~1"=="" goto :parse_args
 set "arg1=%~1"
 if "!arg1:~0,1!"=="/" goto :parse_args
@@ -130,12 +160,12 @@ for %%P in (%protocols%) do (
 )
 if "!found_protocol!"=="" (set "error_arg=true" & set "protocol_error=true" & set "only_arg_error=true" & goto :eof)
 shift
-goto :collect_onlys
-
+goto :collect_test_only_protocols
 
 :handle_exclude
 shift
-:collect_excludes
+for %%P in (%protocols%) do set "global_exclude_%%P="
+:collect_test_exclude_protocols
 if "%~1"=="" goto :parse_args
 set "arg1=%~1"
 if "!arg1:~0,1!"=="/" goto :parse_args
@@ -149,8 +179,7 @@ for %%P in (%protocols%) do (
 )
 if "!found_protocol!"=="" (set "error_arg=true" & set "protocol_error=true" & set "exclude_arg_error=true" & goto :eof)
 shift
-goto :collect_excludes
-
+goto :collect_test_exclude_protocols
 
 :handle_nodebug
 shift
@@ -197,7 +226,7 @@ if exist "!tempfile!" (
     if not defined nopause (echo  Press a key to see Help & pause>nul & call :help & exit /b 11) else (exit /b 11)
 )
 
-del "!output_dir!\*_debug_*.txt" >nul 2>&1
+
 
 
 :: ______________________________________________________________________________ ::
@@ -205,21 +234,19 @@ del "!output_dir!\*_debug_*.txt" >nul 2>&1
 ::                                       MAIN                                     ::
 :: ______________________________________________________________________________ ::
 
+del "!output_dir!\*_debug_*.txt" >nul 2>&1
+
 if defined global_only_active (
     for %%P in (%protocols%) do (
-        if not defined global_only_%%P (
-            set "global_exclude_%%P=true"
-        ) else (
-            set "global_exclude_%%P=false"
-        )
+        if not defined global_only_%%P (set "global_exclude_%%P=true") ^
+        else (set "global_exclude_%%P=false")
     )
 )
 
 for %%S in (%sites%) do (
     set "site=%%S"
-    call :rename_loop %%S
+    call :clean_domain %%S
 )
-
 
 set "ESC="
 set "COLOR_RESET=%ESC%[0m"                 REM Reset colors
@@ -246,7 +273,7 @@ for %%S in (%sites_clean%) do (
     set "site_clean=%%S"
     set /a site_weighted_tests=0
     for %%P in (%protocols%) do (
-        call :ShouldRunTest %%P "!excludes_%%S!" "!includes_%%S!" !site_clean!
+        call :ShouldRunTest %%P "!test_exclude_protocols_%%S!" "!test_only_protocols_%%S!" !site_clean!
         if "!skip_test!"=="false" (
             set "test_weight=!WEIGHT_%%P!"
             set /a site_weighted_tests+=!test_weight!
@@ -266,6 +293,7 @@ for /F "tokens=1-4 delims=:.," %%H in ("%clean_time%") do (
     if "!ss!"=="" set "ss=0"
     set /A "startTime=(1!hh!-100)*3600 + (1!mm!-100)*60 + (1!ss!-100)"
 )
+
 set "DEBUG_FILES="
 for %%S in (%sites_clean%) do (
     for %%P in (%protocols%) do (
@@ -280,14 +308,12 @@ call :PrintTable
 
 
 
-
 :: ________________________________ START TESTS _________________________________ 
 
 for %%S in (%sites_clean%) do (
     set "site_clean=%%S"
-    call :TestSite !site_clean! "!excludes_%%S!" "!includes_%%S!"
+    call :TestSite !site_clean! "!test_exclude_protocols_%%S!" "!test_only_protocols_%%S!"
 )
-
 
 
 
@@ -349,8 +375,6 @@ if defined KO_Protocols (
 
 
 
-
-
 :: ______________________________________________________________________________ ::
 ::                                                                                ::
 ::                                  TESTS FUNCTION                                ::
@@ -358,18 +382,10 @@ if defined KO_Protocols (
 
 :TestSite
 
+
 set "site=%~1"
 set "specific_exclusions=%~2"
 set "specific_inclusions=%~3"
-
-for %%S in (%protocols%) do (
-    set "specific_exclude_%%S="
-    set "specific_include_%%S="
-)
-for %%S in (%protocols%) do (
-    for %%E in (%specific_exclusions%) do if /i "%%E"=="%%S" set "specific_exclude_%%S=true"
-    for %%I in (%specific_inclusions%) do if /i "%%I"=="%%S" set "specific_include_%%S=true"
-)
 
 call :UpdateProgress
 call :PrintTable
@@ -378,7 +394,7 @@ call :PrintTable
 
 :: Test Ping IPv4
 set "protocol=ip4"
-call :verify_skip %site% %protocol%
+call :ShouldRunTest %protocol% "%specific_exclusions%" "%specific_inclusions%" %site%
 if "!skip_test!"=="true" (
     set "cell_%protocol%_%site%=%COLOR_DASH%> " 
     goto :skip_%protocol%
@@ -401,10 +417,9 @@ call :PrintTable
 
 
 
-
 :: Test Ping IPv6
 set "protocol=ip6"
-call :verify_skip %site% %protocol%
+call :ShouldRunTest %protocol% "%specific_exclusions%" "%specific_inclusions%" %site%
 if "!skip_test!"=="true" (
     set "cell_%protocol%_%site%=%COLOR_DASH%> " 
     goto :skip_%protocol%
@@ -426,9 +441,10 @@ call :UpdateProgress
 call :PrintTable
 
 
+
 :: Test Tracert IPv4
 set "protocol=tr4"
-call :verify_skip %site% %protocol%
+call :ShouldRunTest %protocol% "%specific_exclusions%" "%specific_inclusions%" %site%
 if "!skip_test!"=="true" (
     set "cell_%protocol%_%site%=%COLOR_DASH%> " 
     goto :skip_%protocol%
@@ -450,9 +466,10 @@ call :UpdateProgress
 call :PrintTable
 
 
+
 :: Test Tracert IPv6
 set "protocol=tr6"
-call :verify_skip %site% %protocol%
+call :ShouldRunTest %protocol% "%specific_exclusions%" "%specific_inclusions%" %site%
 if "!skip_test!"=="true" (
     set "cell_%protocol%_%site%=%COLOR_DASH%> " 
     goto :skip_%protocol%
@@ -474,9 +491,10 @@ call :UpdateProgress
 call :PrintTable
 
 
+
 :: Test TLS Handshake
 set "protocol=tls"
-call :verify_skip %site% %protocol%
+call :ShouldRunTest %protocol% "%specific_exclusions%" "%specific_inclusions%" %site%
 if "!skip_test!"=="true" (
     set "cell_%protocol%_%site%=%COLOR_DASH%> " 
     goto :skip_%protocol%
@@ -514,9 +532,10 @@ call :UpdateProgress
 call :PrintTable
 
 
+
 :: Test HTTPS
 set "protocol=htp"
-call :verify_skip %site% %protocol%
+call :ShouldRunTest %protocol% "%specific_exclusions%" "%specific_inclusions%" %site%
 if "!skip_test!"=="true" (
     set "cell_%protocol%_%site%=%COLOR_DASH%> " 
     goto :skip_%protocol%
@@ -551,9 +570,10 @@ call :UpdateProgress
 call :PrintTable
 
 
+
 :: Test DNS
 set "protocol=dns"
-call :verify_skip %site% %protocol%
+call :ShouldRunTest %protocol% "%specific_exclusions%" "%specific_inclusions%" %site%
 if "!skip_test!"=="true" (
     set "cell_%protocol%_%site%=%COLOR_DASH%> " 
     goto :skip_%protocol%
@@ -582,6 +602,7 @@ set /a tests_completed_weighted+=!WEIGHT_%protocol%!
 call :UpdateProgress
 call :PrintTable
 
+
 goto :eof
 
 
@@ -590,6 +611,8 @@ goto :eof
 ::                                                                                ::
 ::                                 OTHER FUNCTIONS                                ::
 :: ______________________________________________________________________________ ::
+
+
 
 :PrintTable
 if defined total_lines_printed (
@@ -636,45 +659,23 @@ goto :eof
 
 
 
-:verify_skip
-set "site=%~1"
-set "protocol=%~2"
-set "skip_test=false"
-if      defined specific_include_%protocol% (set "skip_test=false") ^
-else if defined specific_exclude_%protocol% (set "skip_test=true" ) ^
-else if defined global_only_%protocol%      (set "skip_test=false") ^
-else if defined global_exclude_%protocol%   (set "skip_test=true" )
-goto :eof
-
-
-
 :ShouldRunTest
-set "test=%~1"
+set "protocol=%~1"
 set "skip_test=false"
 set "site=%~4"
 set "specific_exclusions=%~2"
 set "specific_inclusions=%~3"
-for %%E in (%specific_exclusions%) do (
-    if %%E==!test! set "!site!_exclude_!test!=true"
-)
-for %%I in (%specific_inclusions%) do (
-    if %%I==!test! set "!site!_include_!test!=true"
-)
-if defined !site!_include_!test! (
-    set "skip_test=false"
-) else if defined global_only_!test! (
-    set "skip_test=false"
-) else (
-    if defined !site!_exclude_!test! (
-        set "skip_test=true"
-    ) else if defined global_exclude_!test! (
-        set "skip_test=true"
-    )
-)
+for %%E in (%specific_exclusions%) do (if %%E==%protocol% set "%site%_exclude_%protocol%=true")
+for %%I in (%specific_inclusions%) do (if %%I==%protocol% set "%site%_include_%protocol%=true")
+if      defined %site%_include_%protocol% (set "skip_test=false") ^
+else if defined %site%_exclude_%protocol% (set "skip_test=true" ) ^
+else if defined global_only_%protocol%    (set "skip_test=false") ^
+else if defined global_exclude_%protocol% (set "skip_test=true" )
 goto :eof
 
 
-:rename_loop
+
+:clean_domain
 set "checkTripleDash=!site:~-6,3!"
 set "foundmarker="
 if "!checkTripleDash!"=="+++" set "foundmarker=+"
@@ -683,19 +684,19 @@ if defined foundmarker (
     set "protocol=!site:~-3,3!"
     set "site=!site:~0,-6!"
     if "%foundmarker%"=="-" (
-        if defined excludes_%~1 (
-            set "excludes_%~1=!excludes_%~1!;!protocol!"
+        if defined test_exclude_protocols_%~1 (
+            set "test_exclude_protocols_%~1=!test_exclude_protocols_%~1!;!protocol!"
         ) else (
-            set "excludes_%~1=!protocol!"
+            set "test_exclude_protocols_%~1=!protocol!"
         )
     ) else if "%foundmarker%"=="+" (
-        if defined includes_%~1 (
-            set "includes_%~1=!includes_%~1!;!protocol!"
+        if defined test_only_protocols_%~1 (
+            set "test_only_protocols_%~1=!test_only_protocols_%~1!;!protocol!"
         ) else (
-            set "includes_%~1=!protocol!"
+            set "test_only_protocols_%~1=!protocol!"
         )
     )
-    goto rename_loop
+    goto clean_domain
 ) else (
     set "site_clean=!site:*://=!"
     for /F "delims=/" %%A in ("!site_clean!") do set "site_clean=%%A"
@@ -704,8 +705,8 @@ if defined foundmarker (
     ) else (
         set "sites_clean=!site_clean!"
     )
-    if defined excludes_%~1 set "excludes_!site_clean!=!excludes_%~1!"
-    if defined includes_%~1 set "includes_!site_clean!=!includes_%~1!"
+    if defined test_exclude_protocols_%~1 set "test_exclude_protocols_!site_clean!=!test_exclude_protocols_%~1!"
+    if defined test_only_protocols_%~1 set "test_only_protocols_!site_clean!=!test_only_protocols_%~1!"
     
     goto :eof
 )
@@ -846,7 +847,6 @@ REM %2 = Current KO_Protocols
 REM %3 = Variable to Set (KO_Protocols)
 set "new_num=%~1"
 set "current=%~2"
-REM Check if the number is already in the current list
 echo %current% | findstr /c:"%new_num%" >nul
 if errorlevel 1 (
     if defined current (
@@ -867,8 +867,8 @@ goto :eof
 echo.
 echo.
 echo    =============================================================================
-echo                               Net Protocols Test v1.3
-echo                                        ---
+echo                              Net Protocols Test v1.4
+echo                                        --- 
 echo                           Author : Freenitial on GitHub
 echo    =============================================================================
 echo.
