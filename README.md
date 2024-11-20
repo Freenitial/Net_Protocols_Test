@@ -28,8 +28,8 @@
 | **`/site`**      | `domain`[`+++`/`---` `protocol`]          | Specifies target websites (with optionnal added `+++`/`---` rules)|
 | **`/only`**      | `ip4` `ip6` `tr4` `tr6` `tls` `htp` `dns` | Tests only the specified protocols                                |
 | **`/exclude`**   | `ip4` `ip6` `tr4` `tr6` `tls` `htp` `dns` | Excludes specified protocols                                      |
-| **`/debug`**     | `true` `false`  (default: `true`)         | Shows debug information for failed tests                          |
-| **`/nopause`**   | `true` `false`  (default: `false`)        | Skips pause at the end of the script                              |
+| **`/nodebug`**   | `true` `false`  (default: `false`)        | Do not show debug information for failed tests                    |
+| **`/nopause`**   | `true` `false`  (default: `false`)        | Do not pause at the end of the script                             |
 | **`/output`**    | `C:\Path\to\logs\directory`               | Specifies output directory for logs (default: current directory)  |
 
 ---
@@ -117,11 +117,11 @@
 🟢 DEBUGGING AND NO-PAUSE MODE
 ---------------------------------------
    ⚙️ Command:
-       Net_Protocols_Test.bat /site google.com /debug false /nopause true
+       Net_Protocols_Test.bat /site google.com /nodebug /nopause
 
    📖 Description:
        - Disables debug output for failed tests.
-       - Skips the pause at the end of the script.
+       - Disables pause at the end of the script.
 ```
 
 ---
