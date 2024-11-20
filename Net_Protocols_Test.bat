@@ -48,6 +48,9 @@ set "output_dir="
 ::                               ARGUMENTS HANDLING                               ::
 :: ______________________________________________________________________________ ::
 
+if "%nopause%"=="false"   set "nopause="
+if "%nopause%"=="0"       set "nopause="
+
 set "global_only_active="
 if defined test_only_protocols (
     for %%O in (%test_only_protocols%) do (
@@ -240,7 +243,6 @@ if exist "!tempfile!" (
 )
 
 
-
 :: ______________________________________________________________________________ ::
 ::                                                                                ::
 ::                                       MAIN                                     ::
@@ -328,7 +330,6 @@ for %%S in (%sites_clean%) do (
 )
 
 
-
 :: ______________________________________________________________________________ ::
 ::                                                                                ::
 ::                                     ENDING                                     ::
@@ -393,7 +394,6 @@ if defined KO_Protocols (
     del "!output_dir!\*_temp*.txt" >nul 2>&1
     exit /b 0
 )
-
 
 
 :: ______________________________________________________________________________ ::
@@ -873,7 +873,7 @@ goto :eof
 echo.
 echo.
 echo    =============================================================================
-echo                              Net Protocols Test v1.4
+echo                              Net Protocols Test v1.5
 echo                                        --- 
 echo                           Author : Freenitial on GitHub
 echo    =============================================================================
@@ -926,7 +926,7 @@ echo       6            At least 1 site test Failed Traceroute IPv6 = ^<2 adress
 echo       7            At least 1 site test Failed TLS
 echo       8            At least 1 site test Failed HTTPS
 echo       9            At least 1 site test Failed DNS
-echo       11           Failed to create output directory -permissions?-: "!output_dir!"
+echo       11           Failed to create output directory -permissions?-
 echo.
 echo.
 echo    OUTPUT:
