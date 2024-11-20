@@ -25,7 +25,7 @@
 
 | **Argument**     | **Value(s)**                              | **Description**                                                   |
 |------------------|-------------------------------------------|-------------------------------------------------------------------|
-| **`/site`**      | `domain`[`+++`/`---` `protocol`]          | Specifies target websites (with optionnal added `+++`/`---` rules |
+| **`/site`**      | `domain`[`+++`/`---` `protocol`]          | Specifies target websites (with optionnal added `+++`/`---` rules)|
 | **`/only`**      | `ip4` `ip6` `tr4` `tr6` `tls` `htp` `dns` | Tests only the specified protocols                                |
 | **`/exclude`**   | `ip4` `ip6` `tr4` `tr6` `tls` `htp` `dns` | Excludes specified protocols                                      |
 | **`/debug`**     | `true` `false`  (default: `true`)         | Shows debug information for failed tests                          |
